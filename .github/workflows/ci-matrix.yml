@@ -1,0 +1,49 @@
+name: CI Matrix Build (dceddbd)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    # Matrix = 3 OS variants (runs in parallel)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [18]  # keep one version; OS gives us 3 parallel jobs
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # Required identifier step
+      - name: matrix-dceddbd
+        run: echo "Building on ${{ matrix.os }} with Node ${{ matrix.node }}"
+
+      # Generate a unique, non-empty artifact per matrix job
+      - name: Generate build artifact
+        shell: bash
+        run: |
+          set -e
+          echo "Build output for os=${{ matrix.os }} node=${{ matrix.node }}" > build-info.txt
+          echo "Runner: $RUNNER_OS" >> build-info.txt
+          node -v >> build-info.txt
+          echo "Timestamp: $(date)" >> build-info.txt
+          # Show file size to confirm non-empty
+          wc -c build-info.txt || (powershell -Command "(Get-Item build-info.txt).Length")
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # prefix MUST be build-dceddbd-
+          name: build-dceddbd-${{ matrix.os }}-node${{ matrix.node }}
+          path: build-info.txt
+          if-no-files-found: error
